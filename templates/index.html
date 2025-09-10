@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot de Asesoramiento Digital - Portafolio</title>
+    <link href="/static/style.css" rel="stylesheet">
+    <link rel="icon" href="/favicon.ico">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
+</head>
+<body>
+    <div class="portfolio-container">
+        <h1>Chatbot de Asesoramiento Digital</h1>
+        <p>Un chatbot impulsado por IA (Hugging Face) para ayudar a negocios a identificar soluciones digitales. Desarrollado con Flask, Socket.IO, SQLite, y Hugging Face Inference API.</p>
+        <ul>
+            <li><strong>Tecnologías</strong>: Python, Flask, Socket.IO, SQLite, Hugging Face API</li>
+            <li><strong>Funcionalidades</strong>: Chat en tiempo real, respuestas inteligentes, almacenamiento de leads</li>
+            <li><strong>Código fuente</strong>: <a href="https://github.com/tu-usuario/tu-repositorio" target="_blank">Ver en GitHub</a></li>
+        </ul>
+        <div id="chat-container">
+            <div id="chat-messages"></div>
+            <input type="text" id="chat-input" placeholder="Escribe aquí...">
+            <button onclick="sendMessage()">Enviar</button>
+        </div>
+    </div>
+    <script src="/static/script.js"></script>
+</body>
+</html>
