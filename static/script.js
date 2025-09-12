@@ -13,17 +13,18 @@ socket.on('connect_error', (error) => {
 });
 
 socket.on('message', (data) => {
-    console.log('Mensaje recibido:', data);
+    console.log('Mensaje recibido del servidor:', data.text); // Mostrar data.text
     removeTypingIndicator();
     const messages = document.getElementById('chat-messages');
     const message = document.createElement('div');
     message.className = 'message bot';
-    message.textContent = data.text;
+    message.textContent = data.text || 'Mensaje vacío recibido';
     messages.appendChild(message);
     messages.scrollTop = messages.scrollHeight;
 });
 
 socket.on('prompt_buttons', (data) => {
+    console.log('Botones recibidos:', data.buttons);
     const messages = document.getElementById('chat-messages');
     const buttonsDiv = document.createElement('div');
     buttonsDiv.className = 'buttons';
@@ -45,7 +46,10 @@ socket.on('prompt_buttons', (data) => {
 function sendMessage() {
     const input = document.getElementById('chat-input');
     const message = input.value.trim();
-    if (!message) return;
+    if (!message) {
+        console.log('No se envió mensaje: entrada vacía');
+        return;
+    }
 
     const messages = document.getElementById('chat-messages');
     const userMessage = document.createElement('div');
@@ -53,6 +57,7 @@ function sendMessage() {
     userMessage.textContent = message;
     messages.appendChild(userMessage);
 
+    console.log('Enviando mensaje al servidor:', message);
     socket.emit('message', { text: message });
     console.log('Mensaje enviado:', message);
 
@@ -77,5 +82,8 @@ function removeTypingIndicator() {
 }
 
 document.getElementById('chat-input').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendMessage();
+    if (e.key === 'Enter') {
+        console.log('Tecla Enter presionada, enviando mensaje');
+        sendMessage();
+    }
 });

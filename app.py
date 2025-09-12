@@ -2,182 +2,131 @@ from flask import Flask, render_template, request, session
 from flask_socketio import SocketIO
 import sqlite3
 from datetime import datetime
-import requests
 import os
+from groq import Groq
 
+# Configuración
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'secret!'
-socketio = SocketIO(app, cors_allowed_origins=['http://127.0.0.1:5500', 'http://localhost:5500', 'http://127.0.0.1:5000'], logger=True, engineio_logger=True)
+app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'super_secret_key')
+socketio = SocketIO(app, cors_allowed_origins=['http://127.0.0.1:5500', 'http://localhost:5500', 'http://127.0.0.1:5000'], async_mode='eventlet')
 
-# Configuración de Hugging Face API
-HF_API_TOKEN = os.getenv('HF_API_TOKEN', 'tu-huggingface-api-token')
-HF_API_URL = "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1"
+# Inicializar cliente Groq
+GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+groq_client = Groq(api_key=GROQ_API_KEY)
 
-# Inicializar base de datos SQLite
+# Inicializar DB
 def init_db():
-    try:
-        with sqlite3.connect('leads.db', timeout=10) as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS leads (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    email TEXT NOT NULL,
-                    business_type TEXT,
-                    needs TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            conn.commit()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='leads';")
-            if cursor.fetchone():
-                print("Tabla 'leads' creada o ya existe.")
-            else:
-                print("Error: Tabla 'leads' no se creó.")
-    except sqlite3.Error as e:
-        print(f"Error al inicializar la base de datos: {e}")
+    with sqlite3.connect('leads.db') as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS leads (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                email TEXT NOT NULL,
+                business_type TEXT,
+                needs TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        conn.commit()
 
-# Generar respuesta con Hugging Face API
+# Función para generar respuesta con Groq
 def generate_ai_response(state, user_message):
-    prompt = f"""
-    Eres una asistente profesional de asesoramiento digital para negocios. Tu objetivo es guiar al usuario para recopilar su nombre, email, tipo de negocio y necesidades, y ofrecer recomendaciones personalizadas. 
-    Contexto: 
-    - Nombre: {state.get('name', 'Desconocido')}
-    - Email: {state.get('email', 'No proporcionado')}
-    - Tipo de negocio: {state.get('business_type', 'No especificado')}
-    - Mensaje actual: {user_message}
-    Responde en español, de manera profesional, amigable y concisa, avanzando la conversación hacia el siguiente paso (si corresponde). No repitas el prompt.
-    """
-    headers = {"Authorization": f"Bearer {HF_API_TOKEN}"}
-    payload = {
-        "inputs": prompt,
-        "parameters": {"max_length": 200, "temperature": 0.7, "return_full_text": False}
-    }
-    try:
-        response = requests.post(HF_API_URL, headers=headers, json=payload)
-        response.raise_for_status()
-        return response.json()[0]["generated_text"].strip()
-    except Exception as e:
-        print(f"Error al generar respuesta con IA: {e}")
-        return None
+    history = "Eres un asistente amigable llamado 'Digi' que recopila información del cliente.\n"
+    for k, v in state.items():
+        if k != 'step':
+            history += f"- {k}: {v}\n"
+    prompt = f"{history} El usuario dice: {user_message}\nResponde en español de forma natural."
 
-# Recomendaciones de respaldo
+    try:
+        response = groq_client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}],
+            model="llama-3.3-70b-versatile",
+            max_tokens=150
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        print("Error al generar respuesta con Groq:", e)
+        return "Lo siento, tuve un problema generando la respuesta."
+
+# Función de recomendaciones
 def get_recommendations(business_type):
-    recommendations = {
+    recs = {
         'restaurante': ["Sitio web con reservas online", "SEO local para Google Maps"],
         'tienda': ["Tienda online con e-commerce", "Automatización de inventario"],
         'servicios': ["CRM para gestión de clientes", "Campañas de email marketing"],
         'default': ["Sitio web profesional", "Análisis de datos para decisiones"]
     }
-    return recommendations.get(business_type.lower(), recommendations['default'])
+    return recs.get(business_type.lower(), recs['default'])
 
-# Ruta principal
+# Rutas
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# Ruta para favicon.ico
 @app.route('/favicon.ico')
 def favicon():
     return '', 204
 
-# WebSocket para el chat
+# WebSocket
 @socketio.on('connect')
-def connect(auth=None):
-    sid = request.sid
-    origin = request.headers.get('Origin')
-    print(f"Cliente conectado: {sid}, Origen: {origin}")
-    session['chat_state'] = {'step': 0, 'data': {}}
+def connect():
+    session['chat_state'] = {'step': 0, 'name': '', 'email': '', 'business_type': '', 'needs': ''}
     session.modified = True
-    socketio.emit('message', {'text': '¡Hola! Soy tu asistente digital. Al compartir tus datos, aceptas que te contactemos. ¿Cuál es tu nombre?'}, to=sid)
+    socketio.emit('message', {'text': '¡Hola! Soy tu asistente digital. ¿Cuál es tu nombre?'}, to=request.sid)
 
-@socketio.on('connect_error')
-def connect_error(error):
-    print(f"Error de conexión WebSocket: {error}")
+# Manejo de pasos
+def handle_step(state, user_message, sid):
+    step = state['step']
+
+    if step == 0:
+        state['name'] = user_message
+        state['step'] = 1
+        ai_resp = generate_ai_response(state, user_message)
+    elif step == 1:
+        if '@' not in user_message:
+            socketio.emit('message', {'text': 'Por favor, ingresa un email válido.'}, to=sid)
+            return
+        state['email'] = user_message
+        state['step'] = 2
+        ai_resp = generate_ai_response(state, user_message)
+    elif step == 2:
+        state['business_type'] = user_message
+        state['step'] = 3
+        ai_resp = generate_ai_response(state, user_message)
+    elif step == 3:
+        state['needs'] = user_message
+        ai_resp = generate_ai_response(state, user_message)
+
+        # Guardar en DB
+        try:
+            with sqlite3.connect('leads.db') as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    'INSERT INTO leads (name,email,business_type,needs) VALUES (?,?,?,?)',
+                    (state['name'], state['email'], state['business_type'], state['needs'])
+                )
+                conn.commit()
+        except Exception as e:
+            print("Error guardando lead:", e)
+            ai_resp += "\nHubo un error guardando los datos."
+
+        state['step'] = 4
+    else:
+        ai_resp = "Gracias, ya tenemos tus datos. ¡Pronto te contactaremos!"
+
+    session['chat_state'] = state
+    session.modified = True
+    socketio.emit('message', {'text': ai_resp}, to=sid)
 
 @socketio.on('message')
 def handle_message(data):
     sid = request.sid
-    try:
-        user_message = data.get('text', '').strip()
-        state = session.get('chat_state', {'step': 0, 'data': {}})
-        print(f"Mensaje recibido de {sid}: {user_message}, paso: {state['step']}")
+    user_message = data.get('text', '').strip()
+    state = session.get('chat_state', {'step': 0})
+    handle_step(state, user_message, sid)
 
-        if state['step'] == 0:  # Preguntar nombre
-            if not user_message:
-                socketio.emit('message', {'text': 'Por favor, dime tu nombre para continuar.'}, to=sid)
-            else:
-                state['data']['name'] = user_message
-                state['step'] = 1
-                session['chat_state'] = state
-                session.modified = True
-                ai_response = generate_ai_response(state['data'], user_message)
-                socketio.emit('message', {'text': ai_response or f'Encantado, {user_message}. ¿Cuál es tu email para enviarte un resumen?'}, to=sid)
-        
-        elif state['step'] == 1:  # Preguntar email
-            if not user_message or '@' not in user_message:
-                socketio.emit('message', {'text': 'Por favor, ingresa un email válido.'}, to=sid)
-            else:
-                state['data']['email'] = user_message
-                state['step'] = 2
-                session['chat_state'] = state
-                session.modified = True
-                ai_response = generate_ai_response(state['data'], user_message)
-                socketio.emit('message', {'text': ai_response or 'Gracias. ¿Qué tipo de negocio tienes? (ej. restaurante, tienda, servicios)'}, to=sid)
-                socketio.emit('prompt_buttons', {'buttons': ['Restaurante', 'Tienda', 'Servicios']}, to=sid)
-        
-        elif state['step'] == 2:  # Preguntar tipo de negocio
-            if not user_message:
-                socketio.emit('message', {'text': 'Por favor, dime el tipo de negocio (ej. restaurante, tienda, servicios).'}, to=sid)
-            else:
-                state['data']['business_type'] = user_message
-                state['step'] = 3
-                session['chat_state'] = state
-                session.modified = True
-                ai_response = generate_ai_response(state['data'], user_message)
-                socketio.emit('message', {'text': ai_response or '¡Entendido! ¿Qué necesitas para tu negocio? (ej. sitio web, automatización, marketing)'}, to=sid)
-        
-        elif state['step'] == 3:  # Preguntar necesidades y guardar lead
-            state['data']['needs'] = user_message or "No especificado"
-            recommendations = get_recommendations(state['data']['business_type'])
-            ai_response = generate_ai_response(state['data'], user_message)
-            response = f"Gracias por compartir, {state['data']['name']}. Para tu {state['data']['business_type']}, te recomiendo:\n"
-            for rec in recommendations:
-                response += f"- {rec}\n"
-            response += "Guardaré tus datos y te contactaré para ayudarte. ¡Gracias por confiar en nosotros!"
-            
-            # Guardar lead
-            try:
-                with sqlite3.connect('leads.db', timeout=10) as conn:
-                    cursor = conn.cursor()
-                    cursor.execute('''
-                        INSERT INTO leads (name, email, business_type, needs, created_at)
-                        VALUES (?, ?, ?, ?, ?)
-                    ''', (state['data']['name'], state['data']['email'], state['data']['business_type'], state['data']['needs'], datetime.now()))
-                    conn.commit()
-                    cursor.execute('SELECT * FROM leads WHERE email = ?', (state['data']['email'],))
-                    saved_lead = cursor.fetchone()
-                    if saved_lead:
-                        print(f"Lead guardado: {state['data']['name']}, {state['data']['email']}, ID: {saved_lead[0]}")
-                    else:
-                        print(f"Error: Lead no encontrado después de guardar: {state['data']['name']}, {state['data']['email']}")
-            except sqlite3.Error as e:
-                print(f"Error al guardar el lead: {e}")
-                response = f"Error al guardar los datos: {e}. Por favor, intenta de nuevo."
-            
-            state['step'] = 4
-            session['chat_state'] = state
-            session.modified = True
-            socketio.emit('message', {'text': ai_response or response}, to=sid)
-        
-        else:  # Fin de la conversación
-            ai_response = generate_ai_response(state['data'], user_message)
-            socketio.emit('message', {'text': ai_response or 'Gracias por charlar. Ya tenemos tus datos. ¡Pronto te contactaremos!'}, to=sid)
-    
-    except Exception as e:
-        print(f"Error en el servidor: {e}")
-        socketio.emit('message', {'text': f"Error en el servidor: {e}"}, to=sid)
-
+# Ejecutar app
 if __name__ == '__main__':
     init_db()
-    socketio.run(app, debug=True, port=5000, allow_unsafe_werkzeug=True)
+    socketio.run(app, port=5000)

@@ -1,0 +1,37 @@
+import os
+import requests
+
+# Lee tu token desde variable de entorno
+HF_API_TOKEN = os.getenv("HF_API_TOKEN")
+
+if not HF_API_TOKEN:
+    raise ValueError("❌ No se encontró HF_API_TOKEN en tus variables de entorno")
+
+# Modelo seguro en español y disponible públicamente
+HF_API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-small"
+
+headers = {
+    "Authorization": f"Bearer {HF_API_TOKEN}",
+    "Content-Type": "application/json"
+}
+
+payload = {"inputs": "Escribe un saludo cordial en español"}
+
+try:
+    response = requests.post(HF_API_URL, headers=headers, json=payload, timeout=30)
+    print("Código de respuesta:", response.status_code)
+    print("Texto de respuesta bruto:", response.text)
+    
+    try:
+        data = response.json()
+        print("JSON decodificado:", data)
+        # Mostrar solo el texto generado
+        if isinstance(data, list) and "generated_text" in data[0]:
+            print("\n💬 Respuesta generada por el modelo:")
+            print(data[0]["generated_text"])
+    except Exception:
+        print("⚠️ La respuesta no era JSON válido")
+
+except requests.exceptions.RequestException as e:
+    print("❌ Error de conexión:", e)
+
