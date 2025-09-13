@@ -3,35 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kaisa - Asistente Digital de Ventas Web</title>
-    <link href="/static/style.css" rel="stylesheet">
-    <link rel="icon" href="/favicon.ico">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
+    <title>Kaisa - Asistente Digital</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
 </head>
 <body>
-    <div class="portfolio-container">
-        <header>
-            <h1>Kaisa - Tu Asistente Digital</h1>
-            <p>Ayudo a negocios a obtener páginas web profesionales y soluciones digitales personalizadas.</p>
+    <div class="chat-container">
+        <header class="chat-header">
+            <h1>Kaisa <span>💡</span></h1>
+            <p>Tu asistente digital para soluciones web modernas</p>
         </header>
 
-        <section class="features">
-            <h2>Detalles del Proyecto</h2>
-            <ul>
-                <li><strong>Tecnologías:</strong> Python, Flask, Socket.IO, SQLite, Hugging Face API</li>
-                <li><strong>Funcionalidades:</strong> Chat en tiempo real, respuestas inteligentes, recopilación de leads</li>
-                <li><strong>Código fuente:</strong> <a href="https://github.com/tu-usuario/tu-repositorio" target="_blank">Ver en GitHub</a></li>
-            </ul>
-        </section>
+        <main id="chat-messages" class="chat-messages"></main>
 
-        <section id="chat-container">
-            <h2>Habla con Kaisa</h2>
-            <div id="chat-messages" class="chat-messages"></div>
-            <div class="chat-input-area">
-                <input type="text" id="chat-input" placeholder="Escribe tu mensaje aquí..." autocomplete="off">
-                <button onclick="sendMessage()">Enviar</button>
-            </div>
-        </section>
+        <div class="chat-input-container">
+            <input type="text" id="chat-input" placeholder="Escribe aquí...">
+            <button id="chat-send-btn" onclick="sendMessage()">Enviar</button>
+        </div>
     </div>
 
     <script src="/static/script.js"></script>
