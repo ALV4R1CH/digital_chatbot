@@ -3,5 +3,5 @@ flask-socketio==5.3.6
 python-socketio==5.11.2
 eventlet==0.39.0
 requests==2.31.0
-
+groq
 python-dotenv==1.0.0
