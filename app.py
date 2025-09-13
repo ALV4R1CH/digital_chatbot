@@ -12,7 +12,11 @@ load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'super_secret_key')
 socketio = SocketIO(app, cors_allowed_origins=[
-    'http://127.0.0.1:5500', 'http://localhost:5500', 'http://127.0.0.1:5000'
+    'http://127.0.0.1:5500',
+    'http://localhost:5500',
+    'http://127.0.0.1:5000',
+    'http://localhost:5000',
+    'https://kaisa-chatbot.onrender.com'
 ], async_mode='eventlet')
 
 # Inicializar cliente Groq
