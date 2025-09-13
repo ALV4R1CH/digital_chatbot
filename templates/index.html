@@ -3,26 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chatbot de Asesoramiento Digital - Portafolio</title>
+    <title>Kaisa - Asistente Digital de Ventas Web</title>
     <link href="/static/style.css" rel="stylesheet">
     <link rel="icon" href="/favicon.ico">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
 </head>
 <body>
     <div class="portfolio-container">
-        <h1>Chatbot de Asesoramiento Digital</h1>
-        <p>Un chatbot impulsado por IA (Hugging Face) para ayudar a negocios a identificar soluciones digitales. Desarrollado con Flask, Socket.IO, SQLite, y Hugging Face Inference API.</p>
-        <ul>
-            <li><strong>Tecnologías</strong>: Python, Flask, Socket.IO, SQLite, Hugging Face API</li>
-            <li><strong>Funcionalidades</strong>: Chat en tiempo real, respuestas inteligentes, almacenamiento de leads</li>
-            <li><strong>Código fuente</strong>: <a href="https://github.com/tu-usuario/tu-repositorio" target="_blank">Ver en GitHub</a></li>
-        </ul>
-        <div id="chat-container">
-            <div id="chat-messages"></div>
-            <input type="text" id="chat-input" placeholder="Escribe aquí...">
-            <button onclick="sendMessage()">Enviar</button>
-        </div>
+        <header>
+            <h1>Kaisa - Tu Asistente Digital</h1>
+            <p>Ayudo a negocios a obtener páginas web profesionales y soluciones digitales personalizadas.</p>
+        </header>
+
+        <section class="features">
+            <h2>Detalles del Proyecto</h2>
+            <ul>
+                <li><strong>Tecnologías:</strong> Python, Flask, Socket.IO, SQLite, Hugging Face API</li>
+                <li><strong>Funcionalidades:</strong> Chat en tiempo real, respuestas inteligentes, recopilación de leads</li>
+                <li><strong>Código fuente:</strong> <a href="https://github.com/tu-usuario/tu-repositorio" target="_blank">Ver en GitHub</a></li>
+            </ul>
+        </section>
+
+        <section id="chat-container">
+            <h2>Habla con Kaisa</h2>
+            <div id="chat-messages" class="chat-messages"></div>
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Escribe tu mensaje aquí..." autocomplete="off">
+                <button onclick="sendMessage()">Enviar</button>
+            </div>
+        </section>
     </div>
+
     <script src="/static/script.js"></script>
 </body>
 </html>
