@@ -29,42 +29,44 @@ else:
 
 DATABASE_URL = os.getenv('DATABASE_URL')
 
-# Inicializar DB
-def init_db():
+# Función para obtener una conexión a la base de datos
+def get_db_connection():
     if DATABASE_URL:
         import psycopg2
-        conn = psycopg2.connect(DATABASE_URL)
+        return psycopg2.connect(DATABASE_URL)
     else:
-        conn = sqlite3.connect('leads.db')
-    
-    cursor = conn.cursor()
-    if DATABASE_URL:
-        # Sintaxis para PostgreSQL
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS leads (
-                id SERIAL PRIMARY KEY,
-                name TEXT NOT NULL,
-                email TEXT NOT NULL,
-                business_type TEXT,
-                needs TEXT,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-    else:
-        # Sintaxis para SQLite
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS leads (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                email TEXT NOT NULL,
-                business_type TEXT,
-                needs TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-    conn.commit()
-    cursor.close()
-    conn.close()
+        return sqlite3.connect('leads.db')
+
+# Inicializar DB
+def init_db():
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        if DATABASE_URL:
+            # Sintaxis para PostgreSQL
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS leads (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    email TEXT NOT NULL,
+                    business_type TEXT,
+                    needs TEXT,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+        else:
+            # Sintaxis para SQLite
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS leads (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    email TEXT NOT NULL,
+                    business_type TEXT,
+                    needs TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+        conn.commit()
+        cursor.close()
 
 # Inicializa la base de datos al iniciar la aplicación
 init_db()
@@ -150,21 +152,15 @@ def step_3(state, msg, sid):
     state['needs'] = msg
     ai_resp = generate_ai_response(state, msg, 3)
     
-    try:
-        if DATABASE_URL:
-            import psycopg2
-            conn = psycopg2.connect(DATABASE_URL)
-        else:
-            conn = sqlite3.connect('leads.db')
-        
-        cursor = conn.cursor()
-        cursor.execute(
-            'INSERT INTO leads (name,email,business_type,needs) VALUES (%s,%s,%s,%s)',
-            (state['name'], state['email'], state['business_type'], state['needs'])
-        )
-        conn.commit()
-        cursor.close()
-        conn.close()
+    try: 
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            # Usar %s para PostgreSQL y ? para SQLite
+            placeholder = '%s' if DATABASE_URL else '?'
+            sql = f'INSERT INTO leads (name, email, business_type, needs) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder})'
+            cursor.execute(sql, (state['name'], state['email'], state['business_type'], state['needs']))
+            conn.commit()
+            cursor.close()
     except Exception as e:
         print("Error guardando lead:", e)
         ai_resp += "\n(Hubo un error guardando los datos, pero no te preocupes, lo revisaremos)."
