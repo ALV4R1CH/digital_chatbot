@@ -2,6 +2,7 @@ Flask==2.3.3
 flask-socketio==5.3.6
 python-socketio==5.11.2
 requests==2.31.0
+eventlet==0.35.2
 groq
 python-dotenv==1.0.0
 gunicorn==22.0.0
