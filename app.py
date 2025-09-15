@@ -27,10 +27,31 @@ if not GROQ_API_KEY:
 else:
     groq_client = Groq(api_key=GROQ_API_KEY)
 
+DATABASE_URL = os.getenv('DATABASE_URL')
+
 # Inicializar DB
 def init_db():
-    with sqlite3.connect('leads.db') as conn:
-        cursor = conn.cursor()
+    if DATABASE_URL:
+        import psycopg2
+        conn = psycopg2.connect(DATABASE_URL)
+    else:
+        conn = sqlite3.connect('leads.db')
+    
+    cursor = conn.cursor()
+    if DATABASE_URL:
+        # Sintaxis para PostgreSQL
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS leads (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                email TEXT NOT NULL,
+                business_type TEXT,
+                needs TEXT,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+    else:
+        # Sintaxis para SQLite
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS leads (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -41,7 +62,12 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        conn.commit()
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+# Inicializa la base de datos al iniciar la aplicación
+init_db()
 
 # Función para generar respuesta con Groq
 def generate_ai_response(state, user_message, step):
@@ -123,14 +149,22 @@ def step_2(state, msg, sid):
 def step_3(state, msg, sid):
     state['needs'] = msg
     ai_resp = generate_ai_response(state, msg, 3)
+    
     try:
-        with sqlite3.connect('leads.db') as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                'INSERT INTO leads (name,email,business_type,needs) VALUES (?,?,?,?)',
-                (state['name'], state['email'], state['business_type'], state['needs'])
-            )
-            conn.commit()
+        if DATABASE_URL:
+            import psycopg2
+            conn = psycopg2.connect(DATABASE_URL)
+        else:
+            conn = sqlite3.connect('leads.db')
+        
+        cursor = conn.cursor()
+        cursor.execute(
+            'INSERT INTO leads (name,email,business_type,needs) VALUES (%s,%s,%s,%s)',
+            (state['name'], state['email'], state['business_type'], state['needs'])
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
     except Exception as e:
         print("Error guardando lead:", e)
         ai_resp += "\n(Hubo un error guardando los datos, pero no te preocupes, lo revisaremos)."
@@ -159,6 +193,5 @@ def handle_message(data):
 
 # Ejecutar app
 if __name__ == '__main__':
-    init_db()
     print("Servidor iniciado. Clave Groq cargada correctamente." if GROQ_API_KEY else "Servidor iniciado. Groq no cargada.")
     socketio.run(app, host='0.0.0.0', port=5000, debug=True)
