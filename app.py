@@ -17,7 +17,7 @@ socketio = SocketIO(app, cors_allowed_origins=[
     'http://127.0.0.1:5000',
     'http://localhost:5000',
     'https://kaisa-chatbot.onrender.com'
-], async_mode='eventlet')
+], async_mode='gevent')
 
 # Inicializar cliente Groq
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
