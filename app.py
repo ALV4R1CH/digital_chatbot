@@ -17,7 +17,7 @@ socketio = SocketIO(app, cors_allowed_origins=[
     'http://127.0.0.1:5000',
     'http://localhost:5000',
     'https://kaisa-chatbot.onrender.com'
-], async_mode='gevent')
+], async_mode='eventlet')
 
 # Inicializar cliente Groq
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
@@ -190,4 +190,4 @@ def handle_message(data):
 # Ejecutar app
 if __name__ == '__main__':
     print("Servidor iniciado. Clave Groq cargada correctamente." if GROQ_API_KEY else "Servidor iniciado. Groq no cargada.")
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=True, allow_unsafe_werkzeug=True)
